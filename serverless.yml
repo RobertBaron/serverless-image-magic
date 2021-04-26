@@ -1,0 +1,40 @@
+service: ImageOptimizer
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  prune:
+    automatic: true
+    number: 5
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  timeout: 30
+  memorySize: 1024
+  region: us-east-1
+  versionFunctions: false
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Action:
+            - 's3:GetObject'
+          Resource: 'arn:aws:s3:::${env:BUCKET}/*'
+        - Effect: 'Allow'
+          Action:
+            - 's3:PutObject'
+          Resource: 'arn:aws:s3:::${env:BUCKET}/*'
+
+functions:
+  s3_statements:
+    handler: src/handler/index.handler
+    timeout: 12
+    layers:
+      - arn:aws:lambda:us-east-1:${env:IMAGE_LAYER}:layer:image-magick:1
+    events:
+      - s3:
+          bucket: ${env:BUCKET}
+          event: s3:ObjectCreated:*
+          existing: true
+          rules:
+            - prefix: ${env:BUCKET_PREFIX}
